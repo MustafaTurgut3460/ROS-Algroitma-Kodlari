@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import rospy
-from yarisma_uygulama.msg import ImuVeri
+from yarisma_simulasyon.msg import ImuVeri
 from sensor_msgs.msg import Imu
 
 class ImuDataClass():
