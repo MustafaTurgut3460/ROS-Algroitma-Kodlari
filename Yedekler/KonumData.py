@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import rospy
-from yarisma_uygulama.msg import KonumVeri
+from yarisma_simulasyon.msg import KonumVeri
 from nav_msgs.msg import Odometry
 
 class KonumData():
@@ -14,14 +14,17 @@ class KonumData():
         rospy.spin()
 
     def konumCallback(self, mesaj):
+        # burada kendime gore eksenleri ayarlamak icin deneme yoluyla degisiklikler yaptim, simulasyon icin...
         konumX = round(mesaj.pose.pose.position.x, 4)
         konumY = round(mesaj.pose.pose.position.y, 4)
+        konumY = -konumY
+        konumX = -konumX
 
-        self.konum_mesaji.konumX = konumX
-        self.konum_mesaji.konumY = konumY
+        self.konum_mesaji.konumY = konumX
+        self.konum_mesaji.konumX = konumY
 
         self.pub.publish(self.konum_mesaji)
-        print("Konum verisi yayinlaniyor...")
+        print(str(self.konum_mesaji.konumX) + " / " + str(-self.konum_mesaji.konumY))
         print("------------------------------")
 
 
