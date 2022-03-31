@@ -49,37 +49,47 @@ class GetData():
             self.inputY = float(input("Y konumu: "))
 
             # Verilen konumun robota gore konumu bulma
-            # hedef konum: KD:1, KB:2, GB:3, GD:4 degerleri verilmistir.
-            if self.inputX > self.konumX and self.inputY > self.konumY:
+            # hedef konum: KD:1, KB:2, GB:3, GD:4 - K:5, G:6, D:7, B:8 degerleri verilmistir.
+            if abs(self.inputX - self.konumX) <= 0.2: # eger aralarinda kucuk bir fark var ise ayni olarak alalim
+                if self.inputY > self.konumY:
+                    print("Hedef Kuzeyde, donuluyor...")
+                    self.hedefYon = 5
+                else:
+                    print("Hedef Guneyde, donuluyor...")
+                    self.hedefYon = 6
+
+            elif abs(self.inputY - self.konumY) <= 0.2: # ayni sekilde kucuk farklari yok sayiyiyoruz
+                if self.inputX > self.konumX:
+                    print("Hedef Doguda, donuluyor...")
+                    self.hedefYon = 7
+                else:
+                    print("Hedef Batida, donuluyor...")
+                    self.hedefYon = 8
+
+            elif self.inputX > self.konumX and self.inputY > self.konumY:
                 print("Hedef Kuzeydoguda, donuluyor...")
                 self.hedefYon = 1
+
             elif self.inputX > self.konumX and self.inputY < self.konumY:
                 print("Hedef Guneydoguda, donuluyor...")
                 self.hedefYon = 4
+
             elif self.inputX < self.konumX and self.inputY > self.konumY:
                 print("Hedef Kuzeybatida, donuluyor...")
                 self.hedefYon = 2
+
             else:
                 print("Hedef Guneybatida, donuluyor...")
                 self.hedefYon = 3
 
             self.robotuDondur(self.hedefYon)
 
-            if self.hedefYon == 1 or self.hedefYon == 2:
+            if self.hedefYon == 1 or self.hedefYon == 2 or self.hedefYon == 5 or self.hedefYon == 7 or self.hedefYon == 8:
+                # kuzey, kuzeydogu, kuzeybati, dogu, bati yonleri
                 self.araliktaYolBul(self.kuzey)
             else:
+                # guney, guneybati, guneydogu yonleri
                 self.araliktaYolBul(self.guney)
-
-           
-
-            """Geldik zurnanin zort dedigi yere...
-            Simdi algoritma su sekilde:
-            Bize bir hedef nokta verilecek ve biz bu hedef noktaya giden yolu bulacagiz. Bunu seu sekilde yapabilirim:
-            Hedef nokta girilecek ve bu nokta hangi yonde oldugu bulunacak. Mesela kuzeybati olsun. Daha sonra robot yon
-            verisine gore kuzeybati yonune donecek yani belirli bir araliga. Burada yol bulabilirse bulacak bulamazsa baska
-            bir yolu takip edecek."""
-
-            
 
             self.rate.sleep()
 
@@ -108,6 +118,7 @@ class GetData():
                 self.hizPub.publish(self.hiz_mesaji)
 
             self.hiz_mesaji.angular.z = 0.0
+            self.hiz_mesaji.linear.x = 0.0
             self.hizPub.publish(self.hiz_mesaji)
             print("Kuzeydoguya donuldu!")
 
@@ -121,6 +132,7 @@ class GetData():
                 self.hizPub.publish(self.hiz_mesaji)
 
             self.hiz_mesaji.angular.z = 0.0
+            self.hiz_mesaji.linear.x = 0.0
             self.hizPub.publish(self.hiz_mesaji)
             print("Kuzeybatiya donuldu!")
 
@@ -134,6 +146,7 @@ class GetData():
                 self.hizPub.publish(self.hiz_mesaji)
 
             self.hiz_mesaji.angular.z = 0.0
+            self.hiz_mesaji.linear.x = 0.0
             self.hizPub.publish(self.hiz_mesaji)
             print("Guneybatiya donuldu!")
 
@@ -147,11 +160,67 @@ class GetData():
                 self.hizPub.publish(self.hiz_mesaji)
 
             self.hiz_mesaji.angular.z = 0.0
+            self.hiz_mesaji.linear.x = 0.0
             self.hizPub.publish(self.hiz_mesaji)
             print("Guneydoguya donuldu!")
 
+        elif yon == 5:
+            # Kuzey
+            # kuzey aci araligi pozitif olarak 0-0.1 araligidir.
+            while not abs(self.yon) <= 0.1:
+                # kuzey olana kadar donmeye devam et
+                self.hizPub.publish(self.hiz_mesaji)
+
+            self.hiz_mesaji.angular.z = 0.0
+            self.hiz_mesaji.linear.x = 0.0
+            self.hizPub.publish(self.hiz_mesaji)
+            print("Kuzeye donuldu!")
+
+        elif yon == 6:
+            # Guney
+            # guney aci araligi pozitif olarak 0.97-0.99
+            while not abs(self.yon) >= 0.97:
+                # guneye gelene kadar don
+                self.hizPub.publish(self.hiz_mesaji)
+
+            self.hiz_mesaji.angular.z = 0.0
+            self.hiz_mesaji.linear.x = 0.0
+            self.hizPub.publish(self.hiz_mesaji)
+            print("Guneye donuldu!")
+            
+        elif yon == 7:
+            # Dogu
+            # dogu aci araligi pozitif olarak 0.68-0.71 araligidir.
+            while not(abs(self.yon) >= 0.68 and abs(self.yon) <= 0.71 and self.dogu):
+                if (self.yon > 0 and self.acisalYon < 0) or (self.yon < 0 and self.acisalYon > 0):
+                    self.dogu = True
+                else:
+                    self.dogu = False
+                self.hizPub.publish(self.hiz_mesaji)
+
+            self.hiz_mesaji.angular.z = 0.0
+            self.hiz_mesaji.linear.x = 0.0
+            self.hizPub.publish(self.hiz_mesaji)
+            print("Doguya donuldu!")
+            
+        elif yon == 8:
+            # Bati
+            # ayni sekilde aralik 0.68-0.71 dir.
+            while not(abs(self.yon) >= 0.68 and abs(self.yon) <= 0.71 and not self.dogu):
+                if (self.yon > 0 and self.acisalYon < 0) or (self.yon < 0 and self.acisalYon > 0):
+                    self.dogu = True
+                else:
+                    self.dogu = False
+                self.hizPub.publish(self.hiz_mesaji)
+
+            self.hiz_mesaji.angular.z = 0.0
+            self.hiz_mesaji.linear.x = 0.0
+            self.hizPub.publish(self.hiz_mesaji)
+            print("Doguya donuldu!")
+
         else:
             self.hiz_mesaji.angular.z = 0.0
+            self.hiz_mesaji.linear.x = 0.0
             self.hizPub.publish(self.hiz_mesaji)
             print("Yon bulunamadi!")
 
@@ -159,8 +228,8 @@ class GetData():
         # belirlenen aralikta donerken cizgi yani yol aramaya devam edecegiz
         seritTakip = SeritTakip()
 
-        xAralik = [self.inputX - 0.05, self.inputX + 0.05]
-        yAralik = [self.inputY - 0.05, self.inputY + 0.05]
+        xAralik = [self.inputX - 0.1, self.inputX + 0.1]
+        yAralik = [self.inputY - 0.1, self.inputY + 0.1]
 
         
         while (abs(self.yon) >= aralik[0] and abs(self.yon) <= aralik[1]) or self.seritVarmi:
