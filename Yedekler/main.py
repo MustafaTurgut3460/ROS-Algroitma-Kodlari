@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import rospy
+import time
 from yarisma_simulasyon.msg import ImuVeri, KonumVeri
 from geometry_msgs.msg import Twist
 from CizgiTakip import SeritTakip
@@ -13,12 +14,19 @@ class GetData():
         rospy.init_node("main")
         self.konumX = 0.0
         self.konumY = 0.0
+        self.gorev = 0
         self.hedefYon = 0
         self.yon = 0.0
         self.acisalYon = 0.0
         self.rate = rospy.Rate(10)
         self.bridge = CvBridge()
         self.seritVarmi = False
+        self.gorevListesi = []
+        self.konumlar = {"A": [0., 2.9],
+                         "B": [3.75, 2.9],
+                         "C": [3.75, -2.9],
+                         "D": [0.0, -2.9],
+                         "S": [0, 0]}
 
         self.kuzey = [0.001, 0.71]
         self.guney = [0.71, 0.99]
@@ -43,55 +51,42 @@ class GetData():
             else:
                 self.dogu = False
 
+            gorevSayisi = int(input("Görev sayisini giriniz: "))
 
-            # hedef konumu alip hedefin hangi yonde oldugunu bulalim
-            self.inputX = float(input("X konumu: "))
-            self.inputY = float(input("Y konumu: "))
+            for i in range(gorevSayisi):
+                # hedef konumu alip hedefin hangi yonde oldugunu bulalim
+                self.hedefNokta = input("Hedef Noktayı Giriniz: ")
+                self.gorev = int(input(str(i+1) + ". Gorev: "))
 
-            # Verilen konumun robota gore konumu bulma
-            # hedef konum: KD:1, KB:2, GB:3, GD:4 - K:5, G:6, D:7, B:8 degerleri verilmistir.
-            if abs(self.inputX - self.konumX) <= 0.2: # eger aralarinda kucuk bir fark var ise ayni olarak alalim
-                if self.inputY > self.konumY:
-                    print("Hedef Kuzeyde, donuluyor...")
-                    self.hedefYon = 5
+                liste = [self.konumlar[self.hedefNokta][0], self.konumlar[self.hedefNokta][1], self.gorev]
+                self.gorevListesi.append(liste) # gorev listesini dolduruyoruz
+
+            for liste in self.gorevListesi:
+                # gorevlerin for dongusu, tum gorevler tamamlanana kadar program devam edecek
+                self.inputX = liste[0]
+                self.inputY = liste[1]
+                self.gorev = liste[2]
+
+                self.yonBelirle() # hedef konum hangi yonde?
+
+                # robotu yone kadar dondur
+                self.robotuDondur(self.hedefYon)
+
+                # belirlenen yonde serit ara ve takip et
+                if self.hedefYon == 1 or self.hedefYon == 2 or self.hedefYon == 5 or self.hedefYon == 7 or self.hedefYon == 8:
+                    # kuzey, kuzeydogu, kuzeybati, dogu, bati yonleri
+                    self.araliktaYolBul(self.kuzey)
                 else:
-                    print("Hedef Guneyde, donuluyor...")
-                    self.hedefYon = 6
+                    # guney, guneybati, guneydogu yonleri
+                    self.araliktaYolBul(self.guney)
 
-            elif abs(self.inputY - self.konumY) <= 0.2: # ayni sekilde kucuk farklari yok sayiyiyoruz
-                if self.inputX > self.konumX:
-                    print("Hedef Doguda, donuluyor...")
-                    self.hedefYon = 7
-                else:
-                    print("Hedef Batida, donuluyor...")
-                    self.hedefYon = 8
+                # gorevi gerceklestir
+                self.gorevYap()
 
-            elif self.inputX > self.konumX and self.inputY > self.konumY:
-                print("Hedef Kuzeydoguda, donuluyor...")
-                self.hedefYon = 1
-
-            elif self.inputX > self.konumX and self.inputY < self.konumY:
-                print("Hedef Guneydoguda, donuluyor...")
-                self.hedefYon = 4
-
-            elif self.inputX < self.konumX and self.inputY > self.konumY:
-                print("Hedef Kuzeybatida, donuluyor...")
-                self.hedefYon = 2
-
-            else:
-                print("Hedef Guneybatida, donuluyor...")
-                self.hedefYon = 3
-
-            self.robotuDondur(self.hedefYon)
-
-            if self.hedefYon == 1 or self.hedefYon == 2 or self.hedefYon == 5 or self.hedefYon == 7 or self.hedefYon == 8:
-                # kuzey, kuzeydogu, kuzeybati, dogu, bati yonleri
-                self.araliktaYolBul(self.kuzey)
-            else:
-                # guney, guneybati, guneydogu yonleri
-                self.araliktaYolBul(self.guney)
-
-            self.rate.sleep()
+                self.rate.sleep()
+            
+            self.gorevListesi.clear()
+            print("TÜM GÖREVLER TAMAMLANDI!")
 
     def imuCallback(self, mesaj):
         self.yon = mesaj.yon
@@ -106,7 +101,7 @@ class GetData():
         self.img = self.bridge.imgmsg_to_cv2(mesaj, "bgr8")
 
     def robotuDondur(self, yon:int):
-        self.hiz_mesaji.angular.z = 0.2
+        self.hiz_mesaji.angular.z = 0.4
         if yon == 1:
             # Kuzeydogu
             while not(abs(self.yon) >= self.kuzey[0] and abs(self.yon) <= self.kuzey[1] and self.dogu): # kuzeydogu araligina kadar donmeye devam et
@@ -228,8 +223,8 @@ class GetData():
         # belirlenen aralikta donerken cizgi yani yol aramaya devam edecegiz
         seritTakip = SeritTakip()
 
-        xAralik = [self.inputX - 0.1, self.inputX + 0.1]
-        yAralik = [self.inputY - 0.1, self.inputY + 0.1]
+        xAralik = [self.inputX - 0.15, self.inputX + 0.15]
+        yAralik = [self.inputY - 0.15, self.inputY + 0.15]
 
         
         while (abs(self.yon) >= aralik[0] and abs(self.yon) <= aralik[1]) or self.seritVarmi:
@@ -244,7 +239,7 @@ class GetData():
             elif acisal_hiz != -1:
                 # serit bulundu takip edelim, hiz verelim
                 self.seritVarmi = True
-                self.hiz_mesaji.linear.x = 0.2
+                self.hiz_mesaji.linear.x = 0.3
                 self.hiz_mesaji.angular.z = acisal_hiz
                 self.hizPub.publish(self.hiz_mesaji)
             else:
@@ -261,11 +256,60 @@ class GetData():
 
         print("Aralik donuldu!")
 
+    def gorevYap(self):
+        if self.gorev == 1:
+            # yuk kaldir
+            for i in range(5):
+                print("Yük kaldiriliyor...")
+                time.sleep(0.8)
+            print("Yuk alindi!")
+        else:
+            # yuk birak
+            for i in range(5):
+                print("Yuk birakiliyor...")
+                time.sleep(0.8)
+            print("Yuk birakildi!")
+
     def konumKontrol(self, xAralik:list, yAralik:list):
         # konuma ulasildi mi?
         control = (self.konumX >= xAralik[0] and self.konumX <= xAralik[1]) and (self.konumY >= yAralik[0] and self.konumY <= yAralik[1])
 
         return control
+
+    def yonBelirle(self):
+        # Verilen konumun robota gore konumu bulma
+        # hedef konum: KD:1, KB:2, GB:3, GD:4 - K:5, G:6, D:7, B:8 degerleri verilmistir.
+        if abs(self.inputX - self.konumX) <= 0.2: # eger aralarinda kucuk bir fark var ise ayni olarak alalim
+            if self.inputY > self.konumY:
+                print("Hedef Kuzeyde, donuluyor...")
+                self.hedefYon = 5
+            else:
+                print("Hedef Guneyde, donuluyor...")
+                self.hedefYon = 6
+
+        elif abs(self.inputY - self.konumY) <= 0.2: # ayni sekilde kucuk farklari yok sayiyiyoruz
+            if self.inputX > self.konumX:
+                print("Hedef Doguda, donuluyor...")
+                self.hedefYon = 7
+            else:
+                print("Hedef Batida, donuluyor...")
+                self.hedefYon = 8
+
+        elif self.inputX > self.konumX and self.inputY > self.konumY:
+            print("Hedef Kuzeydoguda, donuluyor...")
+            self.hedefYon = 1
+
+        elif self.inputX > self.konumX and self.inputY < self.konumY:
+            print("Hedef Guneydoguda, donuluyor...")
+            self.hedefYon = 4
+
+        elif self.inputX < self.konumX and self.inputY > self.konumY:
+            print("Hedef Kuzeybatida, donuluyor...")
+            self.hedefYon = 2
+
+        else:
+            print("Hedef Guneybatida, donuluyor...")
+            self.hedefYon = 3
 
 
 
